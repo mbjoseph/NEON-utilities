@@ -239,6 +239,8 @@ byTileAOP <- function(dpID, site="SJER", year="2017", easting, northing, buffer=
   writeLines(paste("Downloading ", nrow(file.urls.current), " files", sep=""))
   pb <- utils::txtProgressBar(style=3)
   utils::setTxtProgressBar(pb, 1/(nrow(file.urls.current)-1))
+  max_tries <- 3
+  tries_left <- rep(max_tries, nrow(file.urls.current))
   while(j <= nrow(file.urls.current)) {
     path1 <- strsplit(file.urls.current$URL[j], "\\?")[[1]][1]
     pathparts <- strsplit(path1, "\\/")
@@ -250,12 +252,17 @@ byTileAOP <- function(dpID, site="SJER", year="2017", easting, northing, buffer=
                                   paste(newpath, file.urls.current$name[j], sep="/"),
                                   mode="wb", quiet=T), silent = T)
 
-    if(class(t) == "try-error"){
+    if(class(t) == "try-error") {
       writeLines("File could not be downloaded. URLs may have expired. Getting new URLs.")
       file.urls.new <- getTileUrls(month.urls)
       file.urls.current <- file.urls.new
-      writeLines("Continuing downloads.")}
-    if(class(t) != "try-error"){
+      tries_left[j] <- tries_left[j] - 1
+      if (tries_left[j] == 0) {
+        warning(paste("Download for:", file.urls.current$name[j], "failed."))
+        j = j + 1
+      }
+      writeLines("Continuing downloads.")
+    } else {
       messages[j] <- paste(file.urls.current$name[j], "downloaded to", newpath, sep=" ")
       j = j + 1
     }
